@@ -78,6 +78,10 @@ Vayu is that missing piece: a complete data pipeline — ingestion from 3 real A
   +----------------------------------------------+
 ```
 
+### Prefect Pipeline DAG
+
+![Prefect DAG](docs/screenshots/prefect_dag.png)
+
 ---
 
 ## Tech Stack
@@ -260,6 +264,8 @@ DATA QUALITY: All sources Grade A completeness (100%). Weather data
 fresh within 3 minutes. AQI data within 26 minutes.
 ```
 
+![AI Advisory](docs/screenshots/ai_advisory.png)
+
 ---
 
 ## What Makes This Different
@@ -276,11 +282,11 @@ This isn't a standard ETL project. Three things set it apart:
 
 ## Screenshots
 
-> TODO: Add screenshots of the Streamlit dashboard
+### Dashboard Overview
+![Dashboard Overview](docs/screenshots/dashboard_overview.png)
 
-<!-- ![Overview](docs/screenshots/overview.png) -->
-<!-- ![Causality Heatmap](docs/screenshots/causality.png) -->
-<!-- ![AI Advisory](docs/screenshots/advisory.png) -->
+### Granger Causality Heatmap
+![Causality Heatmap](docs/screenshots/causality_heatmap.png)
 
 ---
 
