@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: int_hourly_zone_aqi
+    description: "Hourly AQI aggregates per zone with dominant pollutant"
+    columns:
+      - name: zone
+        tests:
+          - not_null
+      - name: hour_utc
+        tests:
+          - not_null
+      - name: avg_aqi
+        tests:
+          - not_null
+      - name: avg_aqi_category
+        tests:
+          - accepted_values:
+              values: ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+
+  - name: int_weather_aqi_joined
+    description: "Weather and AQI data aligned by location and hour for causality analysis"
+    columns:
+      - name: location_id
+        tests:
+          - not_null
+      - name: timestamp_utc
+        tests:
+          - not_null
+      - name: aqi
+        tests:
+          - not_null
+      - name: temperature_celsius
+        tests:
+          - not_null
+
+  - name: int_pollutant_breakdown
+    description: "Unpivoted pollutant concentrations per station for per-pollutant analysis"
+    columns:
+      - name: location_id
+        tests:
+          - not_null
+      - name: pollutant
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['PM2.5', 'PM10', 'NO2', 'SO2', 'O3', 'CO']

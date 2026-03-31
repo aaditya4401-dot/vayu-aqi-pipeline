@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: vayu_raw
+    database: vayu
+    schema: public
+    tables:
+      - name: weather_readings
+        description: "Raw weather observations from OpenWeatherMap"
+      - name: aqi_readings
+        description: "Raw air quality readings from OpenWeatherMap Air Pollution API"
+      - name: station_measurements
+        description: "Ground station measurements (simulated CPCB + OpenAQ)"
+      - name: dim_stations
+        description: "Dimension table for 7 Delhi NCR monitoring locations"
+      - name: dim_pollutants
+        description: "Dimension table for tracked pollutants"
+      - name: anomaly_log
+        description: "Detected anomalies from analytics layer"
+      - name: forecasts
+        description: "AQI forecast predictions"

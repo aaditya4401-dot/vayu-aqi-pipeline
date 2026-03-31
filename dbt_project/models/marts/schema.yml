@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: mart_daily_aqi_report
+    description: "Daily AQI summary per zone with min/max/avg, dominant pollutant, best/worst hours"
+    columns:
+      - name: zone
+        tests:
+          - not_null
+      - name: report_date
+        tests:
+          - not_null
+      - name: daily_avg_aqi
+        tests:
+          - not_null
+      - name: daily_aqi_category
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+
+  - name: mart_anomaly_log
+    description: "Enriched anomaly log with station context and severity ranking"
+    columns:
+      - name: anomaly_id
+        tests:
+          - unique
+          - not_null
+      - name: severity
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['low', 'medium', 'high', 'critical']
+
+  - name: mart_station_comparison
+    description: "Cross-station comparison with latest AQI, rankings, and source consistency"
+    columns:
+      - name: location_id
+        tests:
+          - unique
+          - not_null
+      - name: station_name
+        tests:
+          - not_null
+
+  - name: mart_forecast_accuracy
+    description: "Forecast vs actual AQI with error metrics and category accuracy"
+    columns:
+      - name: forecast_id
+        tests:
+          - unique
+          - not_null

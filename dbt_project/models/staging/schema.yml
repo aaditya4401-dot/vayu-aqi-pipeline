@@ -1,0 +1,92 @@
+version: 2
+
+models:
+  - name: stg_weather
+    description: "Cleaned weather readings with derived fields (wind direction, heat index, season)"
+    columns:
+      - name: id
+        tests:
+          - unique
+          - not_null
+      - name: location_id
+        tests:
+          - not_null
+          - relationships:
+              to: source('vayu_raw', 'dim_stations')
+              field: location_id
+      - name: timestamp_utc
+        tests:
+          - not_null
+      - name: temperature_celsius
+        tests:
+          - not_null
+      - name: wind_speed_mps
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['winter', 'summer', 'monsoon', 'post_monsoon']
+      - name: wind_cardinal
+        tests:
+          - accepted_values:
+              values: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+
+  - name: stg_aqi
+    description: "Cleaned AQI readings with Indian categories and dominant pollutant identification"
+    columns:
+      - name: id
+        tests:
+          - unique
+          - not_null
+      - name: location_id
+        tests:
+          - not_null
+          - relationships:
+              to: source('vayu_raw', 'dim_stations')
+              field: location_id
+      - name: timestamp_utc
+        tests:
+          - not_null
+      - name: aqi
+        tests:
+          - not_null
+      - name: aqi_category
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+      - name: severity_color
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['green', 'light_green', 'yellow', 'orange', 'red', 'maroon']
+      - name: dominant_pollutant
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['PM2.5', 'PM10', 'NO2', 'SO2', 'O3', 'CO']
+      - name: pm25
+        tests:
+          - not_null
+
+  - name: stg_stations
+    description: "Cleaned station measurements with zone labels and derived AQI"
+    columns:
+      - name: id
+        tests:
+          - unique
+          - not_null
+      - name: location_id
+        tests:
+          - not_null
+      - name: timestamp_utc
+        tests:
+          - not_null
+      - name: pm25
+        tests:
+          - not_null
+      - name: pm10
+        tests:
+          - not_null

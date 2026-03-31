@@ -1,0 +1,12 @@
+vayu:
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: postgres
+      password: postgres
+      dbname: vayu
+      schema: public
+      threads: 4
+  target: dev
