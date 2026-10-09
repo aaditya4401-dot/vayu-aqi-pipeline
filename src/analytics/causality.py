@@ -216,7 +216,7 @@ def run_granger_test(
     try:
         # grangercausalitytests expects [effect, cause] column order
         test_data = aligned[["effect", "cause"]].values
-        gc_results = grangercausalitytests(test_data, maxlag=max_lag, verbose=False)
+        gc_results = grangercausalitytests(test_data, maxlag=max_lag)
 
         for lag in range(1, max_lag + 1):
             if lag not in gc_results:

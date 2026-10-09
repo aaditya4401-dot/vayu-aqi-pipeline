@@ -66,6 +66,13 @@ def run_dbt_transforms() -> bool:
     Uses dbt Python API directly instead of subprocess to avoid
     venv Python path issues.
     """
+    from src.storage.db import is_postgres
+
+    # dbt-postgres can't target the SQLite fallback
+    if not is_postgres():
+        print("WARNING: PostgreSQL unavailable (using SQLite), skipping dbt transformations")
+        return False
+
     dbt_project_dir = Path(__file__).resolve().parent.parent.parent / "dbt_project"
     print(f"Running dbt from: {dbt_project_dir}")
 

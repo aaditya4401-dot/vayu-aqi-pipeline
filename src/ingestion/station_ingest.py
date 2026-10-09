@@ -402,9 +402,8 @@ async def fetch_openaq_delhi(
                 "https://api.openaq.org/v3/locations",
                 params={
                     "coordinates": "28.6139,77.2090",
-                    "radius": 50000,
+                    "radius": 25000,  # OpenAQ v3 max
                     "limit": 20,
-                    "order_by": "distance",
                 },
                 description="OpenAQ v3 Delhi locations",
             )

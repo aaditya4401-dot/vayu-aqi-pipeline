@@ -17,6 +17,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from src.storage.db import get_session
 from src.storage.models import (
@@ -320,48 +322,52 @@ def save_features(df: pd.DataFrame) -> int:
     if df.empty:
         return 0
 
-    session = get_session()
-    count = 0
+    feature_cols = [c for c in FEATURE_COLUMNS if c in df.columns]
+    long_df = (
+        df.melt(
+            id_vars=["location_id", "timestamp"],
+            value_vars=feature_cols,
+            var_name="feature_name",
+            value_name="feature_value",
+        )
+        .dropna(subset=["feature_value"])
+        .drop_duplicates(subset=["location_id", "timestamp", "feature_name"], keep="last")
+    )
+    if long_df.empty:
+        return 0
+
     computed_at = datetime.utcnow()
+    timestamps = pd.DatetimeIndex(long_df["timestamp"]).to_pydatetime()
+    records = [
+        {
+            "location_id": loc,
+            "timestamp": ts,
+            "feature_name": name,
+            "feature_value": float(val),
+            "computed_at": computed_at,
+        }
+        for loc, ts, name, val in zip(
+            long_df["location_id"], timestamps,
+            long_df["feature_name"], long_df["feature_value"],
+        )
+    ]
+
+    session = get_session()
+    insert = sqlite_insert if session.get_bind().dialect.name == "sqlite" else pg_insert
+    chunk_size = 1000  # keeps bound params well under SQLite/Postgres limits
 
     try:
-        for _, row in df.iterrows():
-            loc = row["location_id"]
-            ts = row["timestamp"]
-            for feat_name in FEATURE_COLUMNS:
-                if feat_name not in row.index:
-                    continue
-                val = row[feat_name]
-                if pd.isna(val):
-                    continue
-
-                # Upsert: update if exists, insert if not
-                existing = session.execute(
-                    select(FeatureStoreRow).where(
-                        FeatureStoreRow.location_id == loc,
-                        FeatureStoreRow.timestamp == ts,
-                        FeatureStoreRow.feature_name == feat_name,
-                    )
-                ).scalar_one_or_none()
-
-                if existing:
-                    existing.feature_value = float(val)
-                    existing.computed_at = computed_at
-                else:
-                    session.add(FeatureStoreRow(
-                        location_id=loc,
-                        timestamp=ts,
-                        feature_name=feat_name,
-                        feature_value=float(val),
-                        computed_at=computed_at,
-                    ))
-                count += 1
-
-            # Batch flush every 500 features
-            if count % 500 == 0:
-                session.flush()
-
+        for i in range(0, len(records), chunk_size):
+            stmt = insert(FeatureStoreRow).values(records[i:i + chunk_size])
+            session.execute(stmt.on_conflict_do_update(
+                index_elements=["location_id", "timestamp", "feature_name"],
+                set_={
+                    "feature_value": stmt.excluded.feature_value,
+                    "computed_at": stmt.excluded.computed_at,
+                },
+            ))
         session.commit()
+        count = len(records)
         logger.info("Saved %d feature values to feature_store", count)
     except Exception:
         session.rollback()

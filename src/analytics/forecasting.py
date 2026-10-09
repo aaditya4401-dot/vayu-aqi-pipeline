@@ -163,8 +163,15 @@ def forecast_location(
     # Suppress Prophet's verbose output
     model.fit(train)
 
-    # Create future dataframe
-    future = model.make_future_dataframe(periods=horizon_hours, freq="h")
+    # Timeline covers the held-out test window and the horizon past the last
+    # observed reading (make_future_dataframe only extends past the train split)
+    future = pd.DataFrame({
+        "ds": pd.date_range(
+            prophet_df["ds"].min(),
+            prophet_df["ds"].max() + pd.Timedelta(hours=horizon_hours),
+            freq="h",
+        )
+    })
 
     # Add regressors to future
     for col in regressor_cols:
