@@ -46,3 +46,6 @@ data/simulated/*.json
 # Database
 *.db
 *.sqlite3
+
+# Personal interview notes, keep out of the repo
+docs/INTERVIEW_PREP.md
