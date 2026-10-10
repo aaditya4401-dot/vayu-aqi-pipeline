@@ -2,7 +2,7 @@
 
 > *Sanskrit for wind/air. Because the air you breathe shouldn't be a mystery.*
 
-A production-grade data engineering pipeline that ingests real-time air quality, weather, and ground-station data for Delhi NCR, detects pollution anomalies, forecasts next-day AQI using Prophet, uncovers causal relationships between weather and pollution via Granger causality testing, and generates AI-powered health advisories — all orchestrated by Prefect and visualized in a Streamlit dashboard.
+A data engineering and data science pipeline that ingests air quality and weather data (plus simulated CPCB-style ground stations) for Delhi NCR, detects pollution anomalies, forecasts next-day AQI using Prophet, uncovers causal relationships between weather and pollution via Granger causality testing, and generates AI-powered health advisories — all orchestrated by Prefect and visualized in a Streamlit dashboard.
 
 ---
 
@@ -88,7 +88,7 @@ Vayu is that missing piece: a complete data pipeline — ingestion from 3 real A
 
 | Component | Tool | Why |
 |-----------|------|-----|
-| **Orchestration** | Prefect 3 | Python-native, no Docker needed, local UI at localhost:4200 |
+| **Orchestration** | Prefect 2.x | Python-native, no Docker needed, local UI at localhost:4200 |
 | **Data Warehouse** | PostgreSQL | Industry standard, proper star schema with SQLite fallback |
 | **Transformations** | dbt-core | 10 models across staging/intermediate/marts, 54 data tests |
 | **Weather Data** | OpenWeatherMap API | Free, real-time temp/humidity/wind for 7 Delhi NCR locations |
@@ -99,7 +99,7 @@ Vayu is that missing piece: a complete data pipeline — ingestion from 3 real A
 | **Feature Engineering** | pandas | 45 features: lags, rolling stats, weather interactions, Delhi flags |
 | **Forecasting** | Prophet | 24-hour AQI forecast per zone with feature store regressors |
 | **AI Agent** | OpenAI GPT-4o-mini | Natural language health advisories from all pipeline signals |
-| **Dashboard** | Streamlit + Plotly | 10-tab dark-themed dashboard with causality heatmap |
+| **Dashboard** | Streamlit + Plotly | 10-tab flat dark dashboard, IST display, skeleton loaders, SQLite-safe queries |
 | **Data Validation** | Pydantic v2 | Schema enforcement on all data sources |
 
 ---
@@ -113,10 +113,10 @@ Vayu is that missing piece: a complete data pipeline — ingestion from 3 real A
 - **Idempotent pipeline** — safe to re-run, all upserts handle duplicates gracefully
 
 ### Data Science
-- **Granger Causality Testing** — proves wind speed predicts AQI deterioration hours in advance (1,344 tests, 214 significant findings at p < 0.05)
+- **Granger Causality Testing** — 1,344 tests (24 lags x 7 weather/pollutant pairs x 7 stations + pooled) with ADF stationarity checks and differencing; see [Results and Limitations](#results-and-limitations) for what the tests do and do not show
 - **Seasonal Anomaly Detection** — STL decomposition separates daily/weekly cycles so PM2.5 of 300 in November isn't flagged, but 300 in July is critical
 - **45 Engineered Features** — lag (T-1 to T-24), rolling (6h/12h/24h/7d), weather interactions (wind stagnation, moisture trap, ventilation index), temporal, and 5 Delhi-specific flags (stubble season, winter inversion, Diwali week)
-- **Prophet Forecasting** — 24-hour AQI forecast per zone, 83% category accuracy with feature store regressors
+- **Prophet Forecasting** — 24-hour AQI forecast per zone with feature store regressors, evaluated by rolling backtest against naive baselines (see [Results and Limitations](#results-and-limitations))
 
 ### AI Layer
 - **GPT-4o-mini Health Advisories** — reads anomalies, forecasts, causality insights, feature flags, and data quality scores to generate actionable health guidance by population group
@@ -145,6 +145,8 @@ Vayu is that missing piece: a complete data pipeline — ingestion from 3 real A
 - PostgreSQL 16+ (or SQLite fallback — auto-detected)
 - OpenWeatherMap API key ([free signup](https://openweathermap.org/api))
 - OpenAI API key ([get one](https://platform.openai.com/api-keys))
+- OpenAQ API key (optional, [free](https://explore.openaq.org)); without it the pipeline uses the simulator only
+- macOS without Homebrew: [Postgres.app](https://postgresapp.com) works well; allow your terminal under App Permissions
 
 ### Setup
 
@@ -171,6 +173,10 @@ createdb vayu                   # or via psql: CREATE DATABASE vayu;
 # Initialize schema and seed dimensions
 python -m src.storage.init_db
 
+# Load 30 days of history (AQI, simulated stations, Open-Meteo weather)
+# Needed for forecasting, anomaly detection and causality to produce results
+python -m src.orchestration.backfill --days 30
+
 # Run the full pipeline
 python -m src.orchestration.flows
 
@@ -180,6 +186,9 @@ python -m src.orchestration.flows --causality
 # Launch the dashboard
 python -m streamlit run src/ui/app.py
 # Open http://localhost:8501
+
+# Run the tests
+python -m pytest
 
 # Start Prefect UI (optional)
 prefect server start
@@ -219,7 +228,12 @@ vayu-project/
 |   |   +-- flows.py            # Pipeline DAG with concurrency
 |   |
 |   +-- ui/                     # Layer 6: Dashboard
-|       +-- app.py              # Streamlit (10 tabs, Plotly charts)
+|       |-- app.py              # Entry point + navigation (Dashboard, Terms, Privacy)
+|       |-- dashboard.py        # Header and the 10 tabs
+|       |-- data.py             # Cached, backend-agnostic SQLAlchemy loaders
+|       |-- helpers.py          # IST conversion, AQI categories, season context
+|       |-- theme.py            # Flat theme, skeleton loaders, components
+|       +-- views/              # Tab renderers (live, analytics, ops, legal)
 |
 |-- dbt_project/                # dbt transformations
 |   |-- models/staging/         # stg_weather, stg_aqi, stg_stations
@@ -235,6 +249,8 @@ vayu-project/
 ---
 
 ## Sample AI Advisory Output
+
+*Illustrative output from an earlier run; real advisories vary with current data.*
 
 ```
 DELHI AIR QUALITY ADVISORY - March 31, 2026
@@ -287,6 +303,31 @@ This isn't a standard ETL project. Three things set it apart:
 
 ### Granger Causality Heatmap
 ![Causality Heatmap](docs/screenshots/causality_heatmap.png)
+
+*Screenshots predate the dashboard redesign and the numbers in Results and Limitations.*
+
+---
+
+## Results and Limitations
+
+Measured on 30 days of hourly data (Sep 10 to Oct 10, 2026) across the 7 locations. Reproduce with `python -m src.orchestration.backfill`, then `python -m src.orchestration.flows --causality` (Granger) and `python -m src.analytics.backtest` (forecast accuracy).
+
+| Measure | Result |
+|---------|--------|
+| Granger tests run | 1,344 |
+| Significant at p < 0.05 | 595 |
+| Significant after Bonferroni correction | 199 |
+| Wind speed to AQI | Weak: 11 of 192 tests significant |
+| Temperature and humidity to pollution | Significant almost everywhere, likely driven by the shared daily cycle |
+| Prophet 24h category accuracy (rolling backtest, 1,708 hourly forecasts) | 69.4% |
+| Baseline: predict the last observed value | 75.9% |
+| Baseline: same hour yesterday | 70.8% |
+
+What this means:
+- **Prophet does not beat naive baselines in this window.** Most days are Good or Satisfactory, so a flat guess scores well. The model should be re-evaluated over the stubble and winter seasons, when AQI varies far more.
+- **Many significant lags overstate the evidence.** Neighbouring lags are correlated, and the raw p < 0.05 count is not corrected for multiple testing (the Bonferroni figure above uses a stricter threshold). Granger tests show predictive value, not physical causation.
+- **Stubble season findings are untested.** Oct 15 to Nov 30 had not started when these numbers were measured.
+- **Ground-station data is simulated.** AQI comes from OpenWeatherMap and weather history from Open-Meteo; the CPCB-style stations come from a simulator.
 
 ---
 
