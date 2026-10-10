@@ -184,8 +184,11 @@ def forecast_location(
     forecast = model.predict(future)
 
     # Compute metrics on test set
+    # Scored at the forecast horizon only: the first `horizon_hours` after the train split
     metrics = {}
     if len(test) > 0:
+        horizon_end = train["ds"].max() + pd.Timedelta(hours=horizon_hours)
+        test = test[test["ds"] <= horizon_end]
         test_forecast = forecast[forecast["ds"].isin(test["ds"])].copy()
         if len(test_forecast) > 0:
             merged_test = pd.merge(test, test_forecast[["ds", "yhat"]], on="ds")

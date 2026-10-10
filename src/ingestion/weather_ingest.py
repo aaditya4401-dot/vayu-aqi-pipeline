@@ -220,6 +220,69 @@ async def backfill_weather(days: int = 30) -> list[WeatherReading]:
     return all_readings
 
 
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+async def backfill_weather_openmeteo(days: int = 30) -> list[WeatherReading]:
+    """Backfill hourly weather for all locations from Open-Meteo (free, no API key).
+
+    Alternative to ``backfill_weather`` for accounts without the paid One Call
+    subscription. Timestamps are hourly and in UTC, matching the AQI backfill.
+
+    Args:
+        days: Number of past days to fetch (Open-Meteo allows up to 92).
+
+    Returns:
+        Validated WeatherReadings (source="open-meteo") up to the current hour.
+    """
+    now = datetime.utcnow()
+    readings: list[WeatherReading] = []
+
+    async with httpx.AsyncClient() as client:
+        for loc_id, loc in DELHI_LOCATIONS.items():
+            data = await _fetch_with_retry(
+                client,
+                OPEN_METEO_URL,
+                {
+                    "latitude": loc["lat"],
+                    "longitude": loc["lon"],
+                    "hourly": ",".join([
+                        "temperature_2m", "relative_humidity_2m", "surface_pressure",
+                        "wind_speed_10m", "wind_direction_10m", "cloud_cover",
+                    ]),
+                    "past_days": days,
+                    "forecast_days": 1,
+                    "wind_speed_unit": "ms",
+                    "timezone": "GMT",
+                },
+                description=f"Open-Meteo weather history {loc_id}",
+            )
+            hourly = data.get("hourly", {})
+            count = 0
+            for i, ts_str in enumerate(hourly.get("time", [])):
+                ts = datetime.fromisoformat(ts_str)
+                if ts > now:
+                    continue
+                try:
+                    readings.append(WeatherReading(
+                        location_id=loc_id,
+                        timestamp=ts,
+                        temperature_celsius=hourly["temperature_2m"][i],
+                        humidity_percent=hourly["relative_humidity_2m"][i],
+                        pressure_hpa=hourly["surface_pressure"][i],
+                        wind_speed_mps=hourly["wind_speed_10m"][i],
+                        wind_direction_deg=hourly["wind_direction_10m"][i],
+                        clouds_percent=hourly["cloud_cover"][i],
+                        source="open-meteo",
+                    ))
+                    count += 1
+                except (TypeError, ValueError) as exc:
+                    logger.warning("Skipping invalid Open-Meteo entry %s %s: %s", loc_id, ts_str, exc)
+            logger.info("Open-Meteo: %d hourly readings for %s", count, loc_id)
+
+    return readings
+
+
 # ---------------------------------------------------------------------------
 # CLI entry point for quick testing
 # ---------------------------------------------------------------------------
