@@ -39,3 +39,46 @@ Follow the implementation order in Vayu_Project_Brief.md strictly.
 - `dbt_project/` — dbt models (staging → intermediate → marts)
 - `tests/` — pytest test suite
 - `data/simulated/` — Simulated CPCB sensor output
+
+## Frontend Design: Banned Patterns
+When building or editing any frontend (including `src/ui/` and any website or landing page), NEVER use the following. Treat this as a hard constraint.
+
+### Color and surfaces
+- Harsh gradients
+- Rainbow coloring
+- Purple and black color scheme
+- Neon colors
+- Basic pastel colors
+- Pure white background
+- Liquid glass effects
+- Radial orbs
+- Dot grids
+
+### Typography
+- Inter, Geist, or Space Grotesk fonts
+- Em dashes in any UI copy
+- "It's not X, it's Y" phrasing in copy
+- Emojis
+
+### Iconography
+- Lucide icons
+- Sparkle icons
+- Animated arrows
+
+### Layout and components
+- Drop shadows
+- Soft corner radius (rounded, pill-like corners)
+- Colored left stripe on cards or callouts
+- 3 feature cards in a row
+- Bento grids
+- Checkmark bullets
+- 3 pricing tiers
+- Terminal window mockups
+- Hover animations
+
+### Content and completeness
+- Fake testimonials
+- Missing real product demos (show the actual working product)
+- Missing skeleton loaders (loading states must use skeleton loaders)
+- Missing Terms of Service page
+- Missing Privacy Policy page
